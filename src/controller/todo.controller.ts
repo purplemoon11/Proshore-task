@@ -1,0 +1,108 @@
+import { Request, Response, NextFunction } from "express";
+import { Todo } from "../entity/todo.entity";
+import { AppDataSource } from "../configs/database";
+import { TodoStatus } from "../constants/enums";
+
+const todoRepository = AppDataSource.getRepository(Todo);
+
+export const getTasks = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { filterTasks } = req.query;
+    let todos;
+    if (filterTasks === TodoStatus.Upcoming) {
+      todos = await todoRepository.find({
+        where: { status: TodoStatus.Upcoming },
+      });
+    } else if (filterTasks === TodoStatus.Done) {
+      todos = await todoRepository.find({ where: { status: TodoStatus.Done } });
+    } else {
+      todos = await todoRepository.find();
+    }
+    if (!todos) {
+      throw new Error("Could not fetch data !!!");
+    }
+    res.status(200).json({
+      message: "Todo lists fetched successfully !!!",
+      result: todos,
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteTasks = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const taskId = +req.params.id;
+    const deleteTask = await todoRepository.findOne({ where: { id: taskId } });
+
+    if (!deleteTask) {
+      throw new Error("Task not found");
+    }
+
+    const result = await todoRepository.remove(deleteTask);
+    res.status(200).json({ message: "Task deleted successfully !!!", result });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const createTasks = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { name, shortDescription, dateAndTime, status } = req.body;
+    const todo = new Todo();
+    todo.name = name;
+    todo.shortDescription = shortDescription;
+    todo.dateAndTime = dateAndTime;
+    todo.status = status;
+
+    const savedTodo = await todoRepository.save(todo);
+    if (!savedTodo) {
+      throw new Error("Sorry something went wrong !!!");
+    }
+    res
+      .status(200)
+      .json({ message: "Todo list created successfully !!!", savedTodo });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateTasks = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const taskId = +req.params.id;
+    const { name, shortDescription, dateAndTime, status } = req.body;
+
+    const updateTask = await todoRepository.findOne({ where: { id: taskId } });
+
+    if (!updateTask) {
+      throw new Error("Task not found !!!");
+    }
+
+    updateTask.name = name;
+    updateTask.shortDescription = shortDescription;
+    updateTask.dateAndTime = dateAndTime;
+    updateTask.status = status;
+
+    const result = await todoRepository.save(updateTask);
+
+    res.status(200).json({ message: "Task updated successfully !!!", result });
+  } catch (error) {
+    throw error;
+  }
+};
