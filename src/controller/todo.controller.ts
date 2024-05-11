@@ -2,14 +2,23 @@ import { Request, Response, NextFunction } from "express";
 import { Todo } from "../entity/todo.entity";
 import { AppDataSource } from "../configs/database";
 import { TodoStatus } from "../constants/enums";
+import { TodoRequestBody } from "../constants/interface";
+import { todoValidator } from "../validators/todo.validator";
 
 const todoRepository = AppDataSource.getRepository(Todo);
 
+/**
+ *
+ * @param req
+ * @param res
+ * @param next
+ */
+
 export const getTasks = async (
-  req: Request,
+  req: Request<TodoRequestBody>,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const { filterTasks } = req.query;
     let todos;
@@ -34,11 +43,18 @@ export const getTasks = async (
   }
 };
 
+/**
+ *
+ * @param req
+ * @param res
+ * @param next
+ */
+
 export const deleteTasks = async (
-  req: Request,
+  req: Request<TodoRequestBody>,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const taskId = +req.params.id;
     const deleteTask = await todoRepository.findOne({ where: { id: taskId } });
@@ -54,13 +70,28 @@ export const deleteTasks = async (
   }
 };
 
+/**
+ *
+ * @param req
+ * @param res
+ * @param next
+ */
+
 export const createTasks = async (
-  req: Request,
+  req: Request<TodoRequestBody>,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
-    const { name, shortDescription, dateAndTime, status } = req.body;
+    const { error, value } = validateTodoRequestBody(req.body);
+
+    if (error) {
+      res.status(400).json({ message: error.details[0].message });
+      return;
+    }
+
+    const { name, shortDescription, dateAndTime, status } = value;
+
     const todo = new Todo();
     todo.name = name;
     todo.shortDescription = shortDescription;
@@ -79,14 +110,28 @@ export const createTasks = async (
   }
 };
 
+/**
+ *
+ * @param req
+ * @param res
+ * @param next
+ */
+
 export const updateTasks = async (
-  req: Request,
+  req: Request<TodoRequestBody>,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const taskId = +req.params.id;
-    const { name, shortDescription, dateAndTime, status } = req.body;
+    const { error, value } = validateTodoRequestBody(req.body);
+
+    if (error) {
+      res.status(400).json({ message: error.details[0].message });
+      return;
+    }
+
+    const { name, shortDescription, dateAndTime, status } = value;
 
     const updateTask = await todoRepository.findOne({ where: { id: taskId } });
 
@@ -106,3 +151,7 @@ export const updateTasks = async (
     throw error;
   }
 };
+
+function validateTodoRequestBody(data: any) {
+  return todoValidator.validate(data);
+}
